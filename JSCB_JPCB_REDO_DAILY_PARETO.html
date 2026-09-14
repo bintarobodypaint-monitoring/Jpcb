@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>JSCB • JPCB • REDO Monitoring</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f5f7;color:#17202a}
+header{height:72px;background:#1769aa;color:#fff;display:flex;align-items:center;padding:0 22px;font-weight:800;font-size:25px}
+nav{background:#fff;border-bottom:1px solid #ccd3da;padding:10px 16px;display:flex;gap:8px;position:sticky;top:0;z-index:20}
+button{border:1px solid #b8c0c8;background:#fff;border-radius:7px;padding:10px 16px;font-weight:800;cursor:pointer}
+button.active{background:#1769aa;color:#fff}
+.page{display:none;padding:16px}.page.active{display:block}
+.card{background:#fff;border:1px solid #d7dde3;border-radius:10px;padding:14px;margin-bottom:14px}
+h2{margin:0 0 12px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.badge{display:inline-block;padding:6px 10px;border-radius:6px;background:#eef2f5;font-weight:700}
+.board-wrap{overflow:auto;background:#fff;border:1px solid #111}
+.board{min-width:1500px}
+.timeline-head,.stall-row{display:grid;grid-template-columns:190px repeat(10,1fr)}
+.timeline-head>div,.stall-row>div{border-right:1px solid #8d969e;border-bottom:1px solid #8d969e}
+.timeline-head{font-weight:800;text-align:center}
+.timeline-head .stall{background:#222;color:#fff;padding:12px}
+.hour{padding:9px 2px;background:#eef1f4}
+.stall-row{height:76px;position:relative}
+.stall-name{padding:10px;background:#e9ecef;font-weight:800}
+.track{position:relative;min-width:0;background-image:linear-gradient(to right,transparent calc(100% - 1px),#aeb5bc calc(100% - 1px));}
+.track .bar{position:absolute;height:26px;border-radius:5px;top:8px;padding:5px 7px;font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:3}
+.track .actual{top:42px;background:#1976d2;color:#fff}.track .plan{background:#f59e0b;color:#111}
+.now-line{position:absolute;top:0;bottom:0;width:3px;background:#e00000;z-index:8;box-shadow:0 0 4px #e00000}
+.now-label{position:absolute;top:-23px;transform:translateX(-50%);background:#e00000;color:#fff;padding:3px 7px;border-radius:4px;font-size:11px;font-weight:800;z-index:9}
+.queue{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.queue .box{border:1px solid #ddd;border-radius:8px;padding:10px;min-height:90px}
+table{width:100%;border-collapse:collapse;background:#fff}th,td{border:1px solid #d6dce1;padding:9px;text-align:left}th{background:#eef1f4}
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.kpi .box{background:#fff;border:1px solid #d7dde3;border-radius:10px;padding:15px}.num{font-size:30px;font-weight:900;margin-top:5px}
+.pareto-row{display:grid;grid-template-columns:190px 1fr 70px 70px;gap:8px;align-items:center;margin:8px 0}.barbg{height:22px;background:#e8ecef;border-radius:4px;overflow:hidden}.barfg{height:100%;background:#d60000}
+.note{font-size:12px;color:#66717b}
+@media(max-width:800px){.kpi{grid-template-columns:repeat(2,1fr)}.queue{grid-template-columns:1fr 1fr}header{font-size:20px}}
+</style>
+</head>
+<body>
+<header>JOB CONTROL BOARD — JSCB • JPCB • REDO</header>
+<nav>
+<button class="tab active" onclick="showPage('jscb',this)">JSCB</button>
+<button class="tab" onclick="showPage('jpcb',this)">JPCB</button>
+<button class="tab" onclick="showPage('redo',this)">REDO</button>
+</nav>
+
+<section id="jscb" class="page active">
+<div class="card">
+<h2>JOB SCHEDULING CONTROL BOARD</h2>
+<div class="toolbar">
+<button class="active">LIGHT</button><button>MEDIUM</button><button>HEAVY</button>
+<span class="badge">Senin–Sabtu • 08:00–16:30 • Minggu libur</span>
+</div>
+</div>
+<div class="board-wrap"><div class="board">
+<div class="timeline-head"><div class="stall">STAL / JAM</div><div class="hour">08</div><div class="hour">09</div><div class="hour">10</div><div class="hour">11</div><div class="hour">12</div><div class="hour">13</div><div class="hour">14</div><div class="hour">15</div><div class="hour">16</div><div class="hour">16:30</div></div>
+<div id="jscbRows"></div>
+</div></div>
+</section>
+
+<section id="jpcb" class="page">
+<div class="card">
+<h2>JOB PROCESS CONTROL BOARD</h2>
+<div class="toolbar">
+<button onclick="changeDay(-1)">◀ KEMARIN</button><button onclick="today()">HARI INI</button><button onclick="changeDay(1)">BESOK ▶</button>
+<span id="jpcbDate" class="badge"></span>
+<button>ALL</button><button>ATU 1</button><button>ATU 2</button>
+</div>
+</div>
+<div class="board-wrap"><div class="board">
+<div class="timeline-head"><div class="stall">STAL / JAM</div><div class="hour">08</div><div class="hour">09</div><div class="hour">10</div><div class="hour">11</div><div class="hour">12</div><div class="hour">13</div><div class="hour">14</div><div class="hour">15</div><div class="hour">16</div><div class="hour">17</div></div>
+<div id="jpcbRows"></div>
+</div></div>
+<div class="card">
+<b>🔴 GARIS JAM SAAT INI</b><br>
+<span class="note">Garis merah bergerak mengikuti waktu sekarang pada Hari Ini. PLAN = orange, ACTUAL = biru. Data unit harus berasal dari database/API saat dihubungkan.</span>
+</div>
+</section>
+
+<section id="redo" class="page">
+<div class="card">
+<h2>REDO MONITORING</h2>
+<div class="toolbar">
+<button onclick="redoDay(-1)">◀</button><button onclick="redoToday()">HARI INI</button><button onclick="redoDay(1)">▶</button>
+<span id="redoDate" class="badge"></span>
+</div>
+</div>
+<div class="kpi">
+<div class="box"><b>UNIT SELESAI</b><div class="num" id="kpiDone">0</div></div>
+<div class="box"><b>UNIT REDO</b><div class="num" id="kpiRedo">0</div></div>
+<div class="box"><b>% REDO</b><div class="num" id="kpiPct">0%</div></div>
+<div class="box"><b>TOTAL DEFECT</b><div class="num" id="kpiDef">0</div></div>
+</div>
+<div class="card">
+<h2>REKAP HARIAN</h2>
+<table><thead><tr><th>Defect</th><th>Jumlah</th><th>%</th></tr></thead><tbody id="redoTable"></tbody></table>
+</div>
+<div class="card">
+<h2>PARETO REDO DEFECT</h2>
+<div id="pareto"></div>
+</div>
+<div class="card">
+<h2>DETAIL REDO</h2>
+<table><thead><tr><th>No Polisi</th><th>No PKB</th><th>Proses</th><th>Defect</th><th>Tanggal</th></tr></thead><tbody id="redoDetail"></tbody></table>
+<p class="note">Master defect: 11 Painting + 4 Final Inspection. Unit REDO dihitung unik untuk persentase.</p>
+</div>
+</section>
+
+<script>
+const stalls=[
+'BODY REPAIR 01','BODY REPAIR 02','BODY REPAIR 03','BODY REPAIR 04',
+'PUTTY 01','PUTTY 02','PUTTY 03','PUTTY 04','PUTTY 05','PUTTY 06',
+'SURFACER 01','SURFACER 02','SURFACER 03','SURFACER 04','SURFACER 05','SURFACER 06',
+'PAINTING 01','PAINTING 02','POLISHING 01','POLISHING 02','POLISHING 03','POLISHING 04',
+'REASSEMBLY 01','REASSEMBLY 02','REASSEMBLY 03','REASSEMBLY 04',
+'WASHING 01','WASHING 02','FINAL INSPECTION'
+];
+let jpcbDate=new Date();let redoDate=new Date();
+
+function showPage(id,btn){
+ document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
+ if(id==='jpcb') renderJPCB(); if(id==='redo') renderRedo();
+}
+function fmt(d){return d.toLocaleDateString('id-ID',{day:'2-digit',month:'2-digit',year:'numeric'})}
+function iso(d){return d.toISOString().slice(0,10)}
+function makeRows(target){
+ let h='';
+ stalls.forEach((s,i)=>{
+  h+=`<div class="stall-row"><div class="stall-name">${s}</div>`;
+  for(let x=0;x<10;x++) h+=`<div class="track" data-hour="${8+x}"></div>`;
+  h+='</div>';
+ });
+ document.getElementById(target).innerHTML=h;
+}
+makeRows('jscbRows');makeRows('jpcbRows');
+
+function drawNow(){
+ document.querySelectorAll('.now-line,.now-label').forEach(x=>x.remove());
+ const d=new Date(),h=d.getHours(),m=d.getMinutes();
+ if(h<8||h>17)return;
+ document.querySelectorAll('#jpcbRows .stall-row').forEach(row=>{
+   const tracks=[...row.querySelectorAll('.track')];
+   let idx=h-8;if(idx<0)idx=0;if(idx>9)idx=9;
+   const t=tracks[idx], line=document.createElement('div');
+   line.className='now-line';
+   line.style.left=(m/60*100)+'%';
+   t.appendChild(line);
+   if(row===document.querySelector('#jpcbRows .stall-row')){
+    const lab=document.createElement('div');lab.className='now-label';
+    lab.textContent='NOW '+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+    lab.style.left=(m/60*100)+'%';t.appendChild(lab);
+   }
+ });
+}
+function renderJPCB(){
+ document.getElementById('jpcbDate').textContent=fmt(jpcbDate);
+ drawNow();
+}
+function changeDay(n){jpcbDate.setDate(jpcbDate.getDate()+n);renderJPCB()}
+function today(){jpcbDate=new Date();renderJPCB()}
+setInterval(()=>{if(iso(jpcbDate)===iso(new Date()))drawNow()},60000);
+
+const defects=[
+'STRETCH','ORANGE PEEL','RUNS/LELEH','FISH EYE','DUST/KOTOR','COLOR MISMATCH',
+'SOLVENT POPING','PIN HOLE','MOTTLING','PANEL WAVE/GELOMBANG','DENT/PENYOK',
+'PANEL GAP','BURAM','CAT TERKELUPAS','POOR GLOSS'
+];
+function redoDay(n){redoDate.setDate(redoDate.getDate()+n);renderRedo()}
+function redoToday(){redoDate=new Date();renderRedo()}
+function renderRedo(){
+ document.getElementById('redoDate').textContent=fmt(redoDate);
+ const counts={};defects.forEach(x=>counts[x]=0);
+ let total=0,done=0,units=new Set();
+ defects.forEach(x=>{});
+ // Demo is intentionally empty; replace by API data.
+ const data=[];
+ data.forEach(r=>{
+   if(defects.includes(r.defect)){counts[r.defect]++;total++;units.add(r.plate)}
+ });
+ done=0;
+ const pct=done?units.size/done*100:0;
+ document.getElementById('kpiDone').textContent=done;
+ document.getElementById('kpiRedo').textContent=units.size;
+ document.getElementById('kpiPct').textContent=pct.toFixed(2)+'%';
+ document.getElementById('kpiDef').textContent=total;
+ const arr=defects.map(x=>[x,counts[x]]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
+ const tb=document.getElementById('redoTable');tb.innerHTML=arr.length?arr.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td><td>${total?(x[1]/total*100).toFixed(2):'0.00'}%</td></tr>`).join(''):'<tr><td colspan="3">Belum ada data REDO</td></tr>';
+ let cum=0;document.getElementById('pareto').innerHTML=arr.length?arr.map(x=>{cum+=x[1];return `<div class="pareto-row"><b>${x[0]}</b><div class="barbg"><div class="barfg" style="width:${total?x[1]/arr[0][1]*100:0}%"></div></div><span>${x[1]}</span><span>${total?(cum/total*100).toFixed(0):0}%</span></div>`}).join(''):'Belum ada data REDO untuk tanggal ini.';
+ document.getElementById('redoDetail').innerHTML='<tr><td colspan="5">Menunggu data REDO dari API</td></tr>';
+}
+renderJPCB();renderRedo();
+</script>
+</body>
+</html>
